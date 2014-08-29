@@ -62,4 +62,6 @@
     <drawable name="unreadBorder">#123e92</drawable>
     <drawable name="networkErrorBorder">#dbb300</drawable>
     <drawable name="highlightBorder">#d20004</drawable>
+    <color name="statusBarColor">#0b2e60</color>
+    <color name="loginBackgroundColor">#4480FA</color>
 </resources>

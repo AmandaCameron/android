@@ -32,6 +32,7 @@ import android.content.res.Resources;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ListFragment;
 import android.text.Html;
 import android.text.TextUtils;
