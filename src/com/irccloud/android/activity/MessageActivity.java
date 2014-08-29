@@ -652,11 +652,13 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
                 if(Build.VERSION.SDK_INT >= 11)
                     sendBtn.setAlpha(0.5f);
                 UsersDataSource.User u = UsersDataSource.getInstance().getUser(buffer.bid, server.nick);
-                e = EventsDataSource.getInstance().new Event();
+                e = new EventsDataSource.Event();
                 e.command = messageTxt.getText().toString();
                 e.cid = buffer.cid;
                 e.bid = buffer.bid;
                 e.eid = (System.currentTimeMillis() + conn.clockOffset + 5000) * 1000L;
+                if(e.eid < EventsDataSource.getInstance().lastEidForBuffer(buffer.bid))
+                    e.eid = EventsDataSource.getInstance().lastEidForBuffer(buffer.bid) + 1000;
                 e.self = true;
                 e.from = server.nick;
                 e.nick = server.nick;
@@ -705,6 +707,10 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
                     return null;
                 }
             }
+            if(e != null && e.command != null && e.command.equals("/ignore")) {
+                e.reqid = -2;
+                return null;
+            }
             if(e != null && conn != null && conn.getState() == NetworkConnection.STATE_CONNECTED && messageTxt.getText() != null && messageTxt.getText().length() > 0) {
                 e.reqid = conn.say(e.cid, e.chan, e.command);
                 if(e.msg != null)
@@ -725,6 +731,13 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
                 } else if(messageTxt.getText().toString().equals("/crash")) {
                     Crashlytics.getInstance().crash();
                 }
+            }
+            if(e != null && e.command.equals("/ignore")) {
+                Bundle args = new Bundle();
+                args.putInt("cid", buffer.cid);
+                IgnoreListFragment ignoreList = new IgnoreListFragment();
+                ignoreList.setArguments(args);
+                ignoreList.show(getSupportFragmentManager(), "ignorelist");
             }
             if(e != null && e.reqid != -1) {
 				messageTxt.setText("");
@@ -826,8 +839,8 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
     	launchURI = null;
 
         if(NetworkConnection.getInstance().ready)
-        	setIntent(null);
-    	
+            setIntent(new Intent(this, MessageActivity.class));
+
     	if(intent.hasExtra("bid")) {
     		int new_bid = intent.getIntExtra("bid", 0);
     		if(NetworkConnection.getInstance().ready && NetworkConnection.getInstance().getState() == NetworkConnection.STATE_CONNECTED && BuffersDataSource.getInstance().getBuffer(new_bid) == null) {
@@ -2678,7 +2691,7 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
 		UsersDataSource.User user = UsersDataSource.getInstance().getUser(buffer.bid, from);
 
 		if(user == null && from != null && event.hostmask != null) {
-			user = UsersDataSource.getInstance().new User();
+			user = new UsersDataSource.User();
 			user.nick = from;
 			user.hostmask = event.hostmask;
 			user.mode = "";
@@ -2920,6 +2933,12 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
 
 	@Override
 	public void onBufferSelected(int bid) {
+        launchBid = -1;
+        launchURI = null;
+        cidToOpen = -1;
+        bufferToOpen = null;
+        setIntent(new Intent(this, MessageActivity.class));
+
         if(suggestionsTimerTask != null)
             suggestionsTimerTask.cancel();
         sortedChannels = null;
@@ -3203,8 +3222,9 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
         }
 
         private Uri resize(Uri in) {
+            Uri out = null;
             try {
-                Uri out = Uri.fromFile(File.createTempFile("irccloudcapture-resized", ".jpg", Environment.getExternalStorageDirectory()));
+                out = Uri.fromFile(File.createTempFile("irccloudcapture-resized", ".jpg", Environment.getExternalStorageDirectory()));
                 BitmapFactory.Options o = new BitmapFactory.Options();
                 o.inJustDecodeBounds = true;
                 BitmapFactory.decodeStream(IRCCloudApplication.getInstance().getApplicationContext().getContentResolver().openInputStream(in), null, o);
@@ -3224,22 +3244,19 @@ public class MessageActivity extends BaseActivity implements UsersListFragment.O
                 o = new BitmapFactory.Options();
                 o.inSampleSize = scale;
                 Bitmap bmp = BitmapFactory.decodeStream(IRCCloudApplication.getInstance().getApplicationContext().getContentResolver().openInputStream(in), null, o);
-                if(bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, IRCCloudApplication.getInstance().getApplicationContext().getContentResolver().openOutputStream(out))) {
-                    if (in.toString().contains("irccloudcapture")) {
-                        try {
-                            new File(new URI(mImageUri.toString())).delete();
-                        } catch (Exception e) {
-                        }
-                    }
-
-                    return out;
-                } else {
-                    return null;
+                if(!bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, IRCCloudApplication.getInstance().getApplicationContext().getContentResolver().openOutputStream(out))) {
+                    out = null;
                 }
             } catch (Exception e) {
                 Crashlytics.logException(e);
-                return null;
             }
+            if (in.toString().contains("irccloudcapture")) {
+                try {
+                    new File(new URI(in.toString())).delete();
+                } catch (Exception e) {
+                }
+            }
+            return out;
         }
 
         @Override

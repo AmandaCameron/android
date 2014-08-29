@@ -1555,14 +1555,15 @@ public class ColorFormatter {
 					}
 					builder.insert(pos, html);
 				}
-			}
-			pos++;
+			} else {
+                pos++;
+            }
 		}
 		if(fg.length() > 0) {
 			builder.append("</font>");
 		}
 		if(bg.length() > 0) {
-			builder.append("</_bg" + bg + ">");
+			builder.append("</_bg").append(bg).append(">");
 		}
 		if(bold)
 			builder.append("</b>");

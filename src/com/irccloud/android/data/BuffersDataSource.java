@@ -18,13 +18,14 @@ package com.irccloud.android.data;
 
 import android.util.SparseArray;
 
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 
 public class BuffersDataSource {
-	public class Buffer {
+	public static class Buffer {
         public int bid;
         public int cid;
         public long min_eid;
@@ -70,13 +71,14 @@ public class BuffersDataSource {
 	    	else if(joined1 != joined2)
 	    		return joined2 - joined1;
 	    	else {
-	    		return b1.normalizedName().compareToIgnoreCase(b2.normalizedName());
+                return collator.compare(b1.normalizedName(), b2.normalizedName());
             }
 	    }
 	}
 	
 	private ArrayList<Buffer> buffers;
 	private SparseArray<Buffer> buffers_indexed;
+    private Collator collator;
 
 	private static BuffersDataSource instance = null;
     public boolean dirty = true;
@@ -90,6 +92,8 @@ public class BuffersDataSource {
 	public BuffersDataSource() {
 		buffers = new ArrayList<Buffer>();
         buffers_indexed = new SparseArray<Buffer>();
+        collator = Collator.getInstance();
+        collator.setStrength(Collator.SECONDARY);
 	}
 
 	public void clear() {

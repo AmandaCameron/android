@@ -19,11 +19,14 @@ package com.irccloud.android.activity;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.ActionBarActivity;
 import android.view.View;
 import android.view.Window;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -45,6 +48,7 @@ public class ShareChooserActivity extends FragmentActivity implements NetworkCon
     private TimerTask countdownTimerTask = null;
     private String error = null;
     private View connecting = null;
+    private View buffersList = null;
     private NetworkConnection conn = null;
 
     @Override
@@ -59,6 +63,18 @@ public class ShareChooserActivity extends FragmentActivity implements NetworkCon
 
         BuffersListFragment f = (BuffersListFragment)getSupportFragmentManager().findFragmentById(R.id.BuffersList);
         f.readOnly = true;
+        buffersList = f.getView();
+        buffersList.setVisibility(View.GONE);
+
+        Typeface LatoRegular = Typeface.createFromAsset(getAssets(), "Lato-Regular.ttf");
+
+        LinearLayout IRCCloud = (LinearLayout)findViewById(R.id.IRCCloud);
+        for (int i=0; i < IRCCloud.getChildCount(); i++){
+            View v = IRCCloud.getChildAt(i);
+            if(v instanceof TextView) {
+                ((TextView)v).setTypeface(LatoRegular);
+            }
+        }
     }
 
     @Override
@@ -68,10 +84,12 @@ public class ShareChooserActivity extends FragmentActivity implements NetworkCon
         if(session != null && session.length() > 0) {
             conn = NetworkConnection.getInstance();
             conn.addHandler(this);
-            if (conn.getState() == NetworkConnection.STATE_DISCONNECTED || conn.getState() == NetworkConnection.STATE_DISCONNECTING)
+            if (conn.getState() == NetworkConnection.STATE_DISCONNECTED || conn.getState() == NetworkConnection.STATE_DISCONNECTING) {
                 conn.connect(session);
-            else
+            } else {
                 connecting.setVisibility(View.GONE);
+                buffersList.setVisibility(View.VISIBLE);
+            }
         } else {
             finish();
         }
@@ -167,6 +185,7 @@ public class ShareChooserActivity extends FragmentActivity implements NetworkCon
                     @Override
                     public void run() {
                         connecting.setVisibility(View.GONE);
+                        buffersList.setVisibility(View.VISIBLE);
                     }
                 });
                 break;
@@ -217,6 +236,8 @@ public class ShareChooserActivity extends FragmentActivity implements NetworkCon
     public void onBufferSelected(int bid) {
         Intent i = new Intent(this, MessageActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH)
+            i.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
         i.putExtra("bid", bid);
         if(getIntent() != null && getIntent().getData() != null)
             i.setData(getIntent().getData());

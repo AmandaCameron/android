@@ -593,6 +593,47 @@ public class NetworkConnection {
 		return null;
 	}
 
+    public JSONObject signup(String realname, String email, String password) {
+        try {
+            String tokenResponse = doFetch(new URL("https://" + IRCCLOUD_HOST + "/chat/auth-formtoken"), "", null, null);
+            JSONObject token = new JSONObject(tokenResponse);
+            if(token.has("token")) {
+                String postdata = "realname=" + URLEncoder.encode(realname, "UTF-8") + "&email=" + URLEncoder.encode(email, "UTF-8") + "&password=" + URLEncoder.encode(password, "UTF-8") + "&token=" + token.getString("token");
+                String response = doFetch(new URL("https://" + IRCCLOUD_HOST + "/chat/signup"), postdata, null, token.getString("token"));
+                if(response.length() < 1) {
+                    JSONObject o = new JSONObject();
+                    o.put("message", "empty_response");
+                    return o;
+                } else if(response.charAt(0) != '{') {
+                    JSONObject o = new JSONObject();
+                    o.put("message", "invalid_response");
+                    return o;
+                }
+                return new JSONObject(response);
+            } else {
+                return null;
+            }
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        } catch (JSONException e) {
+            e.printStackTrace();
+            JSONObject o = new JSONObject();
+            try {
+                o.put("message", "json_error");
+            } catch (JSONException e1) {
+            }
+            return o;
+        } catch (Exception e) {
+            e.printStackTrace();
+            Crashlytics.logException(e);
+        }
+        return null;
+    }
+
     public JSONObject fetchJSON(String url) throws IOException {
         try {
             String response = doFetch(new URL(url), null, null, null);
@@ -1062,7 +1103,8 @@ public class NetworkConnection {
 			o.put("hostname", hostname);
 			o.put("port", port);
 			o.put("ssl", String.valueOf(ssl));
-			o.put("netname", netname);
+            if(netname != null)
+    			o.put("netname", netname);
 			o.put("nickname", nickname);
 			o.put("realname", realname);
 			o.put("server_pass", server_pass);
@@ -1082,7 +1124,8 @@ public class NetworkConnection {
 			o.put("hostname", hostname);
 			o.put("port", port);
 			o.put("ssl", String.valueOf(ssl));
-			o.put("netname", netname);
+            if(netname != null)
+    			o.put("netname", netname);
 			o.put("nickname", nickname);
 			o.put("realname", realname);
 			o.put("server_pass", server_pass);
@@ -1122,6 +1165,7 @@ public class NetworkConnection {
 	
 	public int set_prefs(String prefs) {
 		try {
+            Log.i("IRCCloud", "Setting prefs: " + prefs);
 			JSONObject o = new JSONObject();
 			o.put("prefs", prefs);
 			return send("set-prefs", o);
@@ -1215,6 +1259,11 @@ public class NetworkConnection {
             e.printStackTrace();
             return -1;
         }
+    }
+
+    public int resend_verify_email() {
+        JSONObject o = new JSONObject();
+        return send("resend-verify-email", o);
     }
 
     public void request_backlog(int cid, int bid, long beforeId) {
@@ -2350,7 +2399,7 @@ public class NetworkConnection {
         public JSONObject prefs;
         public String highlights;
 
-		public UserInfo(IRCCloudJSONObject object) throws JSONException {
+		public UserInfo(IRCCloudJSONObject object) {
             id = object.getInt("id");
 			name = object.getString("name");
 			email = object.getString("email");
@@ -2360,10 +2409,20 @@ public class NetworkConnection {
 			active_connections = object.getLong("num_active_connections");
 			join_date = object.getLong("join_date");
 			auto_away = object.getBoolean("autoaway");
-			if(object.has("prefs") && !object.getString("prefs").equals("null"))
-				prefs = new JSONObject(object.getString("prefs"));
-			else
-				prefs = null;
+
+			if(object.has("prefs") && !object.getString("prefs").equals("null")) {
+                try {
+                    Log.i("IRCCloud", "Prefs: " + object.getString("prefs"));
+                    prefs = new JSONObject(object.getString("prefs"));
+                } catch (JSONException e) {
+                    Crashlytics.log(Log.ERROR, "IRCCloud", "Unable to parse prefs: " + object.getString("prefs"));
+                    Crashlytics.logException(e);
+                    prefs = null;
+                }
+            } else {
+                Crashlytics.log("User prefs not set");
+                prefs = null;
+            }
 			
 			limits_name = object.getString("limits_name");
 			limits = object.getJsonObject("limits");
